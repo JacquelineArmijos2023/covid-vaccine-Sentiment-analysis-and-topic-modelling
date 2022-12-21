@@ -1,0 +1,21 @@
+Evaluative language attitudes of Covid-19 vaccine-related tweets from January 2020 to September 2022: A sentiment analysis and Topic modelling
+
+After the covid-vaccine program has been implemented worldwide, vaccination is a hot topic in mass media, 
+especially on Twitter. This study evaluated language attitudes of Covid-19 vaccine-related tweets from January
+2020 to September 2022 through a Sentiment analysis and Topic modeling. A total number of 3525 tweets as cleaned
+or processed data was obtained. The data display only written texts about people’s covid-19 vaccine opinions, 
+posted on their Twitter accounts; information such as geographical locations, dates, users’ names were eliminated 
+due to the nature of the study. 
+According to the Sentiment analysis final results, the general sentiment polarity is neutral, and the number
+of neutral tweets represents approximately more than half of the total tweets, showing an absence of interest
+in commenting and reacting on the covid-19 vaccine topic on Twitter.  
+On the other hand, when comparing the positive and negative sentiment of the tweets, the positive sentiment 
+doubles its percentage since the people project the idea of feeling safe. Furthermore, they see the covid vaccine 
+as effective too; both safety and effectiveness are seen as the mass opinion among the tweets posted. Additionally,
+safety and effectiveness are determined as the most salient semantic features when executing the topic modeling.
+In contrast, the negative sentiment polarity focuses on covid vaccine delays, vaccine shortages, and lack of trust. Nonetheless, those mentioned factors are not clearly seen in the SA and LDA analysis, which does not mean that SA and LDA lack accuracy, they show a promising level of reliability instead. 
+In the future, this negative sentiment polarity deserves more attention to identify the main concerns of the 
+people’s Twitter- tweets. Then, local governments, lawmakers, health administrators, and people in charge of 
+vaccination programs, could interpret those concerns into possible solutions. Finally, the remaining deviation 
+towards the negative sentiment in the distribution curve may decrease until people’s opinions consider the 
+covid-19 disease symptoms to have become not deadly. 
