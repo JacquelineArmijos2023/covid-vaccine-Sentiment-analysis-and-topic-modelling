@@ -13,6 +13,8 @@ library(xlsx)
 library(ggplot2)
 library(topicmodels)
 library(wordcloud)
+library(nortest)
+library(ggwordcloud)
 
 # read file
 
@@ -81,16 +83,84 @@ vaccine_copr <- corpus(infinitive_text)
 
 sentiment <- vader_df(vaccine_copr)
 
-sentiment_text <- sentiment %>% mutate(sentiment = if_else(compound ==0,"Neutral",
-                                                           if_else(compound < 0,"Negative",
-                                                                   if_else(compound >0,"Possitive",""))))
+sentiment_text <- sentiment %>% mutate(sentiment = if_else((compound >-0.05 & compound <0.05),"Neutral",
+                                                           if_else(compound <= -0.05,"Negative",
+                                                                   if_else(compound >=0.05,"Possitive",""))))
 
-table(sentiment_text$sentiment)
+hist(sentiment$compound)
 
+# Normality test for compound
+
+lillie.test(sentiment$compound)
+shapiro.test(sentiment$compound)
+pearson.test(sentiment$compound)
+
+
+ggplot(sentiment_text, aes(x = compound)) + geom_histogram(aes(y = ..density..),colour = 1, fill = "green") + 
+  geom_density() + ggtitle("Histogram of compound score", subtitle = "Sentiment Analisys with VADER") +
+  theme(plot.title=element_text(size=20, hjust = 0.5))
+
+ggplot(filter(sentiment_text, sentiment == "Negative"), aes(x = compound)) + geom_histogram(aes(y = ..density..),colour = 1, fill = "green") + 
+  geom_density() + ggtitle("Histogram of sentiment Negative", subtitle = "Sentiment Analisys with VADER") +
+  theme(plot.title=element_text(size=20, hjust = 0.5))
+ggplot(filter(sentiment_text, sentiment == "Possitive"), aes(x = compound)) + geom_histogram(aes(y = ..density..),colour = 1, fill = "green") + 
+    geom_density() + ggtitle("Histogram of sentiment Possitive", subtitle = "Sentiment Analisys with VADER") +
+    theme(plot.title=element_text(size=20, hjust = 0.5))
+ggplot(filter(sentiment_text, sentiment == "Neutral"), aes(x = compound)) + geom_histogram(aes(y = ..density..),colour = 1, fill = "green") + 
+    geom_density() + ggtitle("Histogram of sentiment Neutral", subtitle = "Sentiment Analisys with VADER") +
+    theme(plot.title=element_text(size=20, hjust = 0.5))
+
+lillie.test(filter(sentiment_text, sentiment == "Negative")$compound)
+lillie.test(filter(sentiment_text, sentiment == "Possitive")$compound)
+lillie.test(filter(sentiment_text, sentiment == "Neutral")$compound)
+
+
+ggplot(sentiment_text, aes(x = 1, y = compound)) + 
+  stat_boxplot(geom = "errorbar", width = 0.25) + geom_boxplot( color = "blue", fill = "gray") +
+  ggtitle("BoxPlot of compound score", subtitle = "Sentiment Analisys with VADER") +
+  theme(plot.title=element_text(size=20, hjust = 0.5))
+
+ggplot(sentiment_text, aes(x = sentiment, y = compound, fill = sentiment)) + 
+  stat_boxplot(geom = "errorbar", width = 0.25) + geom_boxplot() +
+  ggtitle("BoxPlot of compound score by Sentiment", subtitle = "Sentiment Analisys with VADER") +
+  theme(plot.title=element_text(size=20, hjust = 0.5))
+
+# Doughnut chart
+
+ss <- data.frame(table(sentiment_text$sentiment)) %>% setNames(c("sentiment", "Freq"))
+
+ggplot(ss, aes(x = 2, y = Freq, fill = sentiment)) +
+  geom_col() + coord_polar(theta = "y") +
+  geom_label(aes(label = paste0(round(100* Freq/nrow(sentiment_text),2), "%")),
+             position = position_stack(vjust = 0.5),
+             show.legend = FALSE) + xlim(c(0.2, 2 + 0.5)) + theme_void() +
+  ggtitle("Doughnut chart compound score", subtitle = "Sentiment Analisys with VADER") +
+  theme(plot.title=element_text(size=20, hjust = 0.5))
 
 #write.xlsx(x = sentiment_text, file = "Sentiment_analysis_visualization.xlsx")
 #write.xlsx(table(sentiment_text$sentiment), file = "Sentiment_analysis_visualization.xlsx", sheetName = "sentimentPlot", append = TRUE)
 
+# Sentiment
+
+
+dtext <- rbind(filter(sentiment_text, sentiment == "Negative")[sample(1:nrow(filter(sentiment_text, sentiment == "Negative")),size=15,replace=FALSE),],
+filter(sentiment_text, sentiment == "Possitive")[sample(1:nrow(filter(sentiment_text, sentiment == "Possitive")),size=29,replace=FALSE),],
+filter(sentiment_text, sentiment == "Neutral")[sample(1:nrow(filter(sentiment_text, sentiment == "Neutral")),size=56,replace=FALSE),])
+
+#write.xlsx(x = dtext, file = "Sample_Sentiment.xlsx")
+
+manual_text <- read.xlsx("Sample_Sentiment.xlsx", sheetName = "Sheet1")
+
+clasif_text <- table(manual_text$sentiment, manual_text$Read)
+
+#Sorting quality
+
+sum(diag(clasif_text))/sum(clasif_text)
+
+#Error in classification
+1- sum(diag(clasif_text))/sum(clasif_text)
+
+#
 
 vaccine_resh <- corpus_reshape(vaccine_copr, to = "paragraphs")
 
@@ -99,14 +169,18 @@ vaccine_freq <- dfm_trim(vaccine_rem, min_docfreq = 10)
 
 vaccine_convert <- convert(vaccine_freq, to = "topicmodels")
 
-vaccine_LDA <- LDA(vaccine_convert, method = "VEM", k = 5, control = list(alpha = 0.1))
+vaccine_LDA <- LDA(vaccine_convert, method = "VEM", k = 4, control = list(alpha = 0.1, seed = 1111))
 
-terms(vaccine_LDA, 10)
 
-vaccine_word <- posterior(vaccine_LDA)$terms[5,]
-vaccine_sort <- sort(vaccine_word, decreasing = TRUE)
-head(vaccine_sort)
-wordcloud(names(vaccine_sort)[1:50], vaccine_sort[1:50])
+for(i in 1:vaccine_LDA@k) {
+  vaccine_terms <- data.frame(term = vaccine_LDA@terms, p = exp(vaccine_LDA@beta[i,]))
+  
+  pw <- ggwordcloud(words = vaccine_terms$term, freq = vaccine_terms$p, max.words = 200, random.order = FALSE,
+              colors=brewer.pal(8, "Dark2"))
+ 
+  print(pw)  
+  
+}
 
 
 # Possitive
@@ -123,15 +197,16 @@ possitive_convert <- convert(possitive_freq, to = "topicmodels")
 
 set.seed(99)
 
-possitive_LDA <- LDA(possitive_convert, method = "VEM", k = 5, control = list(alpha = 0.1))
+possitive_LDA <- LDA(possitive_convert, method = "VEM", k = 4, control = list(alpha = 0.1, seed = 1111))
 
-terms(vaccine_LDA, 10)
-
-possitive_word <- posterior(possitive_LDA)$terms[5,]
-possitive_sort <- sort(possitive_word, decreasing = TRUE)
-head(vaccine_sort)
-wordcloud(names(possitive_sort), possitive_sort, colors = rainbow(100))
-
+for(i in 1:possitive_LDA@k) {
+  possitive_terms <- data.frame(term = possitive_LDA@terms, p = exp(possitive_LDA@beta[i,]))
+  pw <- ggwordcloud(words = possitive_terms$term, freq = possitive_terms$p, max.words = 200, random.order = FALSE,
+                    colors=brewer.pal(8, "Dark2"))
+  
+  ggsave(pw, file=paste0("Possitive Topic", i, ".jpeg"), #Nombre del jpeg
+         height = 3, width = 6, dpi=300) 
+}
 
 # Negative
 
@@ -147,15 +222,17 @@ negative_convert <- convert(negative_freq, to = "topicmodels")
 
 
 
-negative_LDA <- LDA(negative_convert, method = "VEM", k = 5, control = list(alpha = 0.1))
+negative_LDA <- LDA(negative_convert, method = "VEM", k = 4, control = list(alpha = 0.1, seed = 1111))
 
-terms(vaccine_LDA, 10)
-
-negative_word <- posterior(negative_LDA)$terms[5,]
-negative_sort <- sort(negative_word, decreasing = TRUE)
-head(vaccine_sort)
-wordcloud(names(negative_sort), negative_sort, colors = rainbow(100))
-
+for(i in 1:negative_LDA@k) {
+  negative_terms <- data.frame(term = negative_LDA@terms, p = exp(negative_LDA@beta[i,]))
+  pw <- ggwordcloud(words = negative_terms$term, freq = negative_terms$p, max.words = 200, random.order = FALSE,
+                    colors=brewer.pal(8, "Dark2"))
+  
+  ggsave(pw, file=paste0("Negative Topic", i, ".jpeg"), #Nombre del jpeg
+         height = 3, width = 6, dpi=300) 
+  
+}
 # Neutral
 
 neutral_sentim <- filter(sentiment_text, sentiment == "Neutral")
@@ -170,11 +247,16 @@ neutral_convert <- convert(neutral_freq, to = "topicmodels")
 
 set.seed(99)
 
-neutral_LDA <- LDA(neutral_convert, method = "VEM", k = 5, control = list(alpha = 0.1))
+neutral_LDA <- LDA(neutral_convert, method = "VEM", k = 4, control = list(alpha = 0.1, seed = 1111))
 
-terms(vaccine_LDA, 10)
+for(i in 1:neutral_LDA@k) {
+  neutral_terms <- data.frame(term = neutral_LDA@terms, p = exp(neutral_LDA@beta[i,]))
+  pw <- ggwordcloud(words = neutral_terms$term, freq = neutral_terms$p, max.words = 200, random.order = FALSE,
+                    colors=brewer.pal(8, "Dark2"))
+  
+  ggsave(pw, file=paste0("Neutral Topic", i, ".jpeg"),
+         height = 3, width = 6, dpi = 300)
+  
+  
+}
 
-neutral_word <- posterior(neutral_LDA)$terms[5,]
-neutral_sort <- sort(neutral_word, decreasing = TRUE)
-head(vaccine_sort)
-wordcloud(names(neutral_sort), neutral_sort, colors = rainbow(100))
